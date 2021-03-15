@@ -1,0 +1,15 @@
+{
+  "name": "loop-game",
+  "version": "0.0.1",
+  "main": "index.js",
+  "author": "jtuu <joona.tuukkanen@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^4.2.3"
+  },
+  "scripts": {
+    "tsc": "./node_modules/typescript/bin/tsc",
+    "add_extensions_to_imports": "./scripts/add_extensions_to_imports.sh",
+    "build": "tsc --build tsconfig.json && yarn add_extensions_to_imports"
+  }
+}
