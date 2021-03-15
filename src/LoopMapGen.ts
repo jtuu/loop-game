@@ -6,6 +6,7 @@ import { Vec2 } from "./utils";
 type LoopMapGenResult = {
     tiles: Grid<Tile>;
     path: Array<Vec2>;
+    loop_start: Vec2;
 };
 
 export class LoopMapGen extends MapGen {
@@ -45,7 +46,7 @@ export class LoopMapGen extends MapGen {
 
         // Work around rare bug where we fail to find a path depending on the starting location
         let i = 0;
-        while (!pathable && ++i < 1000) {
+        while (!pathable && path.length < this.size && ++i < 1000) {
             // Pick loop starting poing
             const rx = Math.floor(Math.random() * this.size);
             const ry = Math.floor(Math.random() * this.size);
@@ -161,7 +162,7 @@ export class LoopMapGen extends MapGen {
                 }
 
                 const tile = new Tile(x, y, kind);
-                tiles.seti(i, tile);
+                tiles.set(x, y, tile);
             }
         }
 
@@ -169,7 +170,8 @@ export class LoopMapGen extends MapGen {
 
         return {
             tiles,
-            path
+            path,
+            loop_start
         };
     }
 }

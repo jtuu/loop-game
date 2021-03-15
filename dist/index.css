@@ -1,0 +1,35 @@
+body {
+    margin: 0;
+    padding: 0;
+    background-color: hsl(0, 0%, 10%);
+}
+
+.message-log {
+    font-family: "puny8x10";
+    height: 130px;
+    overflow-y: scroll;;
+}
+
+.log-message + .log-message {
+    padding-top: 1px;
+}
+
+.log-message.neutral {
+    color: #e3e2e8;
+}
+
+.log-message.good {
+    color: #55dd99;
+}
+
+.log-message.very-good {
+    color: #30ff07;
+}
+
+.log-message.bad {
+    color: #f3c631;
+}
+
+.log-message.very-bad {
+    color: #ff2c2c;
+}

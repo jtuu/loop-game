@@ -5,6 +5,7 @@
   "author": "jtuu <joona.tuukkanen@gmail.com>",
   "license": "MIT",
   "devDependencies": {
+    "@types/css-font-loading-module": "^0.0.4",
     "typescript": "^4.2.3"
   },
   "scripts": {
