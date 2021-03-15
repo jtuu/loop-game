@@ -1,5 +1,6 @@
 import { Creature, player, weak_enemy } from "./Creature";
 import { FloorLoop } from "./FloorLoop";
+import { Vec2 } from "./utils";
 
 export const tile_px_size = 64;
 export const offwhite_color = "#e3e2e8";
@@ -44,9 +45,14 @@ export class Game {
     protected canvas: HTMLCanvasElement;
     protected renderer: CanvasRenderingContext2D;
     protected current_animation_frame: number | null = null;
+    
     protected font_name = "puny8x10";
-    protected font_size = 40;
-    protected screen_border_padding = 5;
+    protected big_font_size = 40;
+    protected small_font_size = 20;
+    protected big_font_style = `${this.big_font_size}px ${this.font_name}`;
+    protected small_font_style = `${this.small_font_size}px ${this.font_name}`;
+
+    protected canvas_border_padding = 5;
     protected text_line_padding = 1;
 
     protected message_log_element: HTMLElement;
@@ -62,6 +68,8 @@ export class Game {
     protected player: Creature | null = null;
 
     protected current_fight_duration = 0;
+
+    protected cursor_canvas_pos: Vec2 = [0, 0];
 
     constructor(parent_element: HTMLElement) {
         this.canvas = parent_element.appendChild(document.createElement("canvas"));
@@ -93,7 +101,7 @@ export class Game {
 
         const font: Promise<any> = new FontFace(this.font_name, "url(puny8x10.ttf)").load().then(font => {
             document.fonts.add(font);
-            this.renderer.font = `${this.font_size}px ${font.family}`;
+            this.renderer.font = this.big_font_style;
         });
 
         const assets = sprites.concat(font);
@@ -102,7 +110,7 @@ export class Game {
             load.then(() => {
                 num_loaded++;
                 this.clear_canvas();
-                this.renderer.fillText(`LOADING ${num_loaded}/${num_assets}`, this.screen_border_padding, this.font_size);
+                this.renderer.fillText(`LOADING ${num_loaded}/${num_assets}`, this.canvas_border_padding, this.big_font_size);
             })
         });
 
@@ -119,6 +127,11 @@ export class Game {
             this.canvas.addEventListener("mousedown", () => {
                 this.paused = !this.paused;
                 this.player!.ticks_since_move = 0;
+            });
+
+            this.canvas.addEventListener("mousemove", e => {
+                this.cursor_canvas_pos[0] = e.offsetX;
+                this.cursor_canvas_pos[1] = e.offsetY;
             });
 
             this.log_message(`Hello and welcome to the Loop!`);
@@ -223,15 +236,45 @@ export class Game {
             }
         }
 
+        // Drawing stuff
         this.current_floor!.render(this.renderer);
 
         this.renderer.fillStyle = offwhite_color;
-        this.renderer.fillText(`LOOP#${this.current_floor!.loop_count() + 1}`, this.screen_border_padding, this.font_size);
+        this.renderer.font = this.big_font_style;
+        this.renderer.fillText(`LOOP#${this.current_floor!.loop_count() + 1}`, this.canvas_border_padding, this.big_font_size);
 
-        this.renderer.fillText(`HP${this.player!.hp}/${this.player!.max_hp}`, this.screen_border_padding, this.font_size * 2 + this.text_line_padding);
+        this.renderer.fillText(`HP${this.player!.hp}/${this.player!.max_hp}`, this.canvas_border_padding, this.big_font_size * 2 + this.text_line_padding);
 
         const play_state_icon = this.paused ? this.get_sprite("sprites/pause.png") : this.get_sprite("sprites/play.png");
-        this.renderer.drawImage(play_state_icon, 0, this.font_size * 2);
+        this.renderer.drawImage(play_state_icon, 0, this.big_font_size * 2);
+
+        if (this.cursor_canvas_pos[0] >= 0 && this.cursor_canvas_pos[0] < this.canvas.width &&
+                this.cursor_canvas_pos[1] >= 0 && this.cursor_canvas_pos[1] < this.canvas.height) {
+            // Describe what is under the cursor
+            const cursor_tile = this.current_floor!.tile_at(...this.canvas_coord_to_tile_coord(...this.cursor_canvas_pos));
+            const enemies = this.current_floor!.enemies_at(cursor_tile.x(), cursor_tile.y());
+            const player_tile = this.current_floor!.player_tile();
+
+            let tile_description = "";
+            // Prioritize enemies then buildings then terrain
+            if (enemies.length > 0) {
+                tile_description += enemies.map(e => `${e.name} (HP${e.hp}/${e.max_hp})`).join(", ");
+            } else if (cursor_tile == player_tile) {
+                tile_description += "That's you!";
+            } else {
+                tile_description += cursor_tile.desciption();
+            }
+
+            if (tile_description) {
+                tile_description = tile_description.toUpperCase();
+                this.renderer.font = this.small_font_style;
+                this.renderer.fillText(tile_description, this.canvas_border_padding, this.canvas.height - this.canvas_border_padding);
+
+                // Highlight tile
+                this.renderer.strokeStyle = offwhite_color;
+                this.renderer.strokeRect(cursor_tile.x() * tile_px_size + 0.5, cursor_tile.y() * tile_px_size + 0.5, tile_px_size - 1, tile_px_size - 1);
+            }
+        }
     }
 
     public run = () => {
@@ -268,5 +311,12 @@ export class Game {
         if (this.message_log_element.childElementCount > this.message_log_scrollback) {
             this.message_log_element.removeChild(this.message_log_element.firstChild!);
         }
+    }
+
+    public canvas_coord_to_tile_coord(canvas_x: number, canvas_y: number): Vec2 {
+        return [
+            Math.floor(canvas_x / tile_px_size),
+            Math.floor(canvas_y / tile_px_size)
+        ];
     }
 }

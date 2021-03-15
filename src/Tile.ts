@@ -37,4 +37,22 @@ export class Tile {
     public building(): BuildingKind {
         return this.building_;
     }
+
+    public desciption(): string {
+        if (this.building_ == BuildingKind.None) {
+            switch (this.terrain_) {
+                case TerrainKind.Floor:
+                    return "The floor. You can walk on this."
+                case TerrainKind.Error:
+                    return "!!ERROR!!";
+            }
+        } else {
+            switch (this.building_) {
+                case BuildingKind.Camp:
+                    return "This is your camp.";
+            }
+        }
+
+        return "";
+    }
 }

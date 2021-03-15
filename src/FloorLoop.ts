@@ -98,6 +98,10 @@ export class FloorLoop {
         return enemies;
     }
 
+    public tile_at(x: number, y: number): Tile {
+        return this.tiles.get(x, y);
+    }
+
     public render(renderer: CanvasRenderingContext2D): void {
         const player_sprite = game.get_sprite("sprites/player.png");
         const camp_sprite = game.get_sprite("sprites/camp.png");

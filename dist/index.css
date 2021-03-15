@@ -6,8 +6,12 @@ body {
 
 .message-log {
     font-family: "puny8x10";
+    font-size: 20px;
     height: 130px;
-    overflow-y: scroll;;
+    overflow-y: scroll;
+    padding-left: 5px;
+    filter: contrast(1); /* Removes anti-aliasing for the text */
+    font-kerning: none;
 }
 
 .log-message + .log-message {
