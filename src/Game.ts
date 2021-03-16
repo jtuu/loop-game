@@ -1,20 +1,30 @@
 import { Creature, player, weak_enemy } from "./Creature";
+import { empty_equipment_sprites, Equipment, EquipmentSlot, equipment_slots, equipment_slot_names } from "./Equipment";
 import { FloorLoop } from "./FloorLoop";
 import { Vec2 } from "./utils";
 
 export const tile_px_size = 64;
 export const offwhite_color = "#e3e2e8";
+export const gray_color = "#c5c5c5";
 
 const sprite_paths = [
     "sprites/player.png",
     "sprites/camp.png",
     "sprites/play.png",
     "sprites/pause.png",
-    "sprites/weak_creature.png"
+    "sprites/weak_creature.png",
+    "sprites/empty_helmet.png",
+    "sprites/empty_cloak.png",
+    "sprites/empty_gloves.png",
+    "sprites/empty_boots.png",
+    "sprites/empty_armor.png",
+    "sprites/empty_mainhand.png",
+    "sprites/empty_offhand.png",
+    "sprites/empty_ring.png",
+    "sprites/empty_amulet.png"
 ] as const;
 
-type SpriteName = typeof sprite_paths[number];
-
+export type SpriteName = typeof sprite_paths[number];
 
 function load_image(src: string): Promise<HTMLImageElement> {
     const img = new Image();
@@ -66,6 +76,9 @@ export class Game {
     protected paused = true;
 
     protected player: Creature | null = null;
+    protected equipment: Map<EquipmentSlot, Equipment> = new Map();
+
+    protected equipment_start_tile_y = 2;
 
     protected current_fight_duration = 0;
 
@@ -246,18 +259,43 @@ export class Game {
         this.renderer.fillText(`HP${this.player!.hp}/${this.player!.max_hp}`, this.canvas_border_padding, this.big_font_size * 2 + this.text_line_padding);
 
         const play_state_icon = this.paused ? this.get_sprite("sprites/pause.png") : this.get_sprite("sprites/play.png");
-        this.renderer.drawImage(play_state_icon, 0, this.big_font_size * 2);
+        this.renderer.drawImage(play_state_icon, this.canvas.width / 2 - tile_px_size / 2, 0);
+
+        // Draw equipment
+        this.renderer.strokeStyle = gray_color;
+        let equipment_slot_tile_y = this.equipment_start_tile_y;
+        for (const slot of equipment_slots) {
+            const equipment = this.equipment.get(slot);
+            if (equipment) {
+                equipment.render(this.renderer, 0, equipment_slot_tile_y * tile_px_size);
+            } else {
+                this.renderer.drawImage(this.get_sprite(empty_equipment_sprites[slot]), 0, equipment_slot_tile_y * tile_px_size);
+            }
+
+            this.draw_tile_border(0, equipment_slot_tile_y);
+            equipment_slot_tile_y++;
+        }
 
         if (this.cursor_canvas_pos[0] >= 0 && this.cursor_canvas_pos[0] < this.canvas.width &&
                 this.cursor_canvas_pos[1] >= 0 && this.cursor_canvas_pos[1] < this.canvas.height) {
             // Describe what is under the cursor
             const cursor_tile = this.current_floor!.tile_at(...this.canvas_coord_to_tile_coord(...this.cursor_canvas_pos));
-            const enemies = this.current_floor!.enemies_at(cursor_tile.x(), cursor_tile.y());
-            const player_tile = this.current_floor!.player_tile();
-
             let tile_description = "";
-            // Prioritize enemies then buildings then terrain
-            if (enemies.length > 0) {
+
+            const player_tile = this.current_floor!.player_tile();
+            const enemies = this.current_floor!.enemies_at(cursor_tile.x(), cursor_tile.y());
+            
+            // Prioritize equipment slots then enemies then buildings then terrain
+            if (cursor_tile.x() == 0 && cursor_tile.y() >= this.equipment_start_tile_y &&
+                    cursor_tile.y() <= this.equipment_start_tile_y + equipment_slots.length) {
+                const equipment_slot = equipment_slots[cursor_tile.y() - this.equipment_start_tile_y];
+                const equipment = this.equipment.get(equipment_slot);
+                if (equipment) {
+                    tile_description += equipment.to_string();
+                } else {
+                    tile_description += `${equipment_slot_names[equipment_slot]} (Empty)`;
+                }
+            } else if (enemies.length > 0) {
                 tile_description += enemies.map(e => `${e.name} (HP${e.hp}/${e.max_hp})`).join(", ");
             } else if (cursor_tile == player_tile) {
                 tile_description += "That's you!";
@@ -272,7 +310,7 @@ export class Game {
 
                 // Highlight tile
                 this.renderer.strokeStyle = offwhite_color;
-                this.renderer.strokeRect(cursor_tile.x() * tile_px_size + 0.5, cursor_tile.y() * tile_px_size + 0.5, tile_px_size - 1, tile_px_size - 1);
+                this.draw_tile_border(cursor_tile.x(), cursor_tile.y());
             }
         }
     }
@@ -318,5 +356,9 @@ export class Game {
             Math.floor(canvas_x / tile_px_size),
             Math.floor(canvas_y / tile_px_size)
         ];
+    }
+
+    public draw_tile_border(tile_x: number, tile_y: number) {
+        this.renderer.strokeRect(tile_x * tile_px_size + 0.5, tile_y * tile_px_size + 0.5, tile_px_size - 1, tile_px_size - 1);
     }
 }
