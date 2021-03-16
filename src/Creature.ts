@@ -14,7 +14,7 @@ export class Creature {
 
     constructor(
         public name: string,
-        public sprite: HTMLImageElement,
+        public sprite: CanvasImageSource,
         public max_hp: number,
         public hit_dice: number[],
         public attack_interval: number,

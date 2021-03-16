@@ -3,3 +3,55 @@ export function linear_scale(n: number, src_min: number, src_max: number, dst_mi
 }
 
 export type Vec2 = [number, number];
+
+export type Vec3 = [number, number, number];
+
+export function hsv2rgb(h: number, s: number, v: number): Vec3 {
+    const i = Math.floor(h * 6);
+    const f = h * 6 - i;
+    const p = v * (1 - s);
+    const q = v * (1 - f * s);
+    const t = v * (1 - (1 - f) * s);
+
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    switch (i % 6) {
+        case 0: r = v, g = t, b = p; break;
+        case 1: r = q, g = v, b = p; break;
+        case 2: r = p, g = v, b = t; break;
+        case 3: r = p, g = q, b = v; break;
+        case 4: r = t, g = p, b = v; break;
+        case 5: r = v, g = p, b = q; break;
+    }
+
+    return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+}
+
+export function colorize(img: HTMLImageElement | HTMLCanvasElement, r: number, g: number, b: number): HTMLCanvasElement {
+    const canvas = document.createElement("canvas");
+    
+    const ctx = canvas.getContext("2d");
+
+    if (!ctx) {
+        throw new Error("Failed to create renderer");
+    }
+
+    canvas.width = img.width;
+    canvas.height = img.height;
+
+    ctx.drawImage(img, 0, 0);
+    const img_data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+    for (let i = 0; i < img_data.data.length; i += 4) {
+        if (img_data.data[i + 3] > 0) {
+            img_data.data[i + 0] = r;
+            img_data.data[i + 1] = g;
+            img_data.data[i + 2] = b;
+        }
+    }
+
+    ctx.putImageData(img_data, 0, 0);
+
+    return canvas;
+}

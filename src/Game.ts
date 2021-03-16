@@ -1,5 +1,5 @@
 import { Creature, player, weak_enemy } from "./Creature";
-import { empty_equipment_sprites, Equipment, EquipmentSlot, equipment_slots, equipment_slot_names } from "./Equipment";
+import { empty_equipment_sprites, Equipment, EquipmentSlot, equipment_slots, equipment_slot_names, generate_armor, generate_equipment } from "./Equipment";
 import { FloorLoop } from "./FloorLoop";
 import { Vec2 } from "./utils";
 
@@ -147,6 +147,7 @@ export class Game {
                 this.cursor_canvas_pos[1] = e.offsetY;
             });
 
+            this.equipment.set(EquipmentSlot.Mainhand, generate_equipment(EquipmentSlot.Mainhand));
             this.log_message(`Hello and welcome to the Loop!`);
 
             this.run();
@@ -267,7 +268,7 @@ export class Game {
         for (const slot of equipment_slots) {
             const equipment = this.equipment.get(slot);
             if (equipment) {
-                equipment.render(this.renderer, 0, equipment_slot_tile_y * tile_px_size);
+                equipment.render(this.renderer, 0, equipment_slot_tile_y);
             } else {
                 this.renderer.drawImage(this.get_sprite(empty_equipment_sprites[slot]), 0, equipment_slot_tile_y * tile_px_size);
             }
