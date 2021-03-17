@@ -6,25 +6,25 @@ export class Creature {
     public x = -1;
     public y = -1;
 
-    public hp: number;
+    protected hp_: number;
 
     public floor: FloorLoop | null = null;
     public ticks_since_attack = 0;
     public ticks_since_move = 0;
 
     constructor(
-        public name: string,
-        public sprite: CanvasImageSource,
-        public max_hp: number,
-        public hit_dice: number[],
-        public attack_interval: number,
-        public movement_interval: number
+        protected name_: string,
+        protected sprite: CanvasImageSource,
+        protected base_max_hp: number,
+        protected hit_dice: number[],
+        protected base_attack_interval: number,
+        protected base_movement_interval: number
     ) {
-        this.hp = max_hp;
+        this.hp_ = base_max_hp;
     }
 
     public take_damage(damage: number) {
-        this.hp -= damage;
+        this.hp_ -= damage;
     }
 
     public attack_damage(): number {
@@ -37,17 +37,37 @@ export class Creature {
         return damage;
     }
 
+    public attack_interval(): number {
+        return this.base_attack_interval;
+    }
+
+    public movement_interval(): number {
+        return this.base_movement_interval;
+    }
+
+    public max_hp(): number {
+        return this.base_max_hp;
+    }
+
+    public name(): string {
+        return this.name_;
+    }
+
     public dead(): boolean {
-        return this.hp <= 0;
+        return this.hp_ <= 0;
+    }
+
+    public heal_to_full() {
+        this.hp_ = this.max_hp();
     }
 
     public render(renderer: CanvasRenderingContext2D) {
         renderer.drawImage(this.sprite, this.x * tile_px_size, this.y * tile_px_size);
     }
-}
 
-export function player(): Creature {
-    return new Creature("You", game.get_sprite("sprites/player.png"), 20, [2, 2], 100, 30);
+    public hp_string(): string {
+        return `HP${this.hp_}/${this.max_hp()}`;
+    }
 }
 
 export function weak_enemy(): Creature {

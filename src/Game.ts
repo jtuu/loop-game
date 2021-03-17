@@ -1,7 +1,8 @@
-import { Creature, player, weak_enemy } from "./Creature";
-import { empty_equipment_sprites, Equipment, EquipmentSlot, equipment_slots, equipment_slot_names, generate_armor, generate_equipment } from "./Equipment";
+import { weak_enemy } from "./Creature";
+import { empty_equipment_sprites, EquipmentSlot, equipment_slots, equipment_slot_names, generate_equipment, generate_random_equipment } from "./Equipment";
 import { FloorLoop } from "./FloorLoop";
-import { Vec2 } from "./utils";
+import { Player } from "./Player";
+import { add_indefinite_article, Vec2 } from "./utils";
 
 export const tile_px_size = 64;
 export const offwhite_color = "#e3e2e8";
@@ -75,14 +76,15 @@ export class Game {
 
     protected paused = true;
 
-    protected player: Creature | null = null;
-    protected equipment: Map<EquipmentSlot, Equipment> = new Map();
+    protected player: Player | null = null;
 
     protected equipment_start_tile_y = 2;
 
     protected current_fight_duration = 0;
 
     protected cursor_canvas_pos: Vec2 = [0, 0];
+
+    protected base_drop_rate = 0.5;
 
     constructor(parent_element: HTMLElement) {
         this.canvas = parent_element.appendChild(document.createElement("canvas"));
@@ -93,7 +95,7 @@ export class Game {
 
         this.renderer = renderer;
         
-        this.canvas.width = this.floor_size * tile_px_size;
+        this.canvas.width = this.floor_size * tile_px_size + 500;
         this.canvas.height = this.floor_size * tile_px_size;
 
         this.message_log_element = parent_element.appendChild(document.createElement("div"));
@@ -135,7 +137,7 @@ export class Game {
     public start() {
         this.load_assets().then(() => {
             this.current_floor = new FloorLoop(this.floor_size);
-            this.player = player();
+            this.player = new Player();
 
             this.canvas.addEventListener("mousedown", () => {
                 this.paused = !this.paused;
@@ -147,7 +149,7 @@ export class Game {
                 this.cursor_canvas_pos[1] = e.offsetY;
             });
 
-            this.equipment.set(EquipmentSlot.Mainhand, generate_equipment(EquipmentSlot.Mainhand));
+            this.player!.equip(generate_equipment(EquipmentSlot.Mainhand, 1));
             this.log_message(`Hello and welcome to the Loop!`);
 
             this.run();
@@ -166,13 +168,13 @@ export class Game {
                     // Describe enemies
                     const counts_by_name = new Map();
                     for (const enemy of enemies) {
-                        let count = counts_by_name.get(enemy.name);
+                        let count = counts_by_name.get(enemy.name());
                         if (!count) {
                             count = 1;
                         } else {
                             count += 1;
                         }
-                        counts_by_name.set(enemy.name, count);
+                        counts_by_name.set(enemy.name(), count);
                     }
 
                     let enemies_list_text = "";
@@ -182,7 +184,7 @@ export class Game {
                         let text = "";
 
                         if (count == 1) {
-                            text = `a ${name}`;
+                            text = add_indefinite_article(name);
                         } else {
                             // TODO: pluralize properly?
                             text = `${count} ${name}s`;
@@ -200,47 +202,59 @@ export class Game {
                     this.log_message(`You have encountered ${enemies_list_text}!`);
 
                     // Player's initial attack has lower delay
-                    this.player!.ticks_since_attack = Math.floor(Math.random() * this.player!.attack_interval);
+                    this.player!.ticks_since_attack = Math.floor(Math.random() * this.player!.attack_interval());
                 }
 
-                if (++this.player!.ticks_since_attack >= this.player!.attack_interval) {
-                    this.player!.ticks_since_attack = 0;
+                // Add a small delay at the beginning of a fight to make it look a bit nicer
+                if (this.current_fight_duration > 20) {
+                    if (++this.player!.ticks_since_attack >= this.player!.attack_interval()) {
+                        this.player!.ticks_since_attack = 0;
 
-                    const target = enemies[0];
-                    const damage = this.player!.attack_damage();
-                    target.take_damage(damage);
-                    this.log_message(`You hit the ${target.name} for ${damage} damage!`);
+                        const target = enemies[0];
+                        const damage = this.player!.attack_damage();
+                        target.take_damage(damage);
+                        this.log_message(`You hit the ${target.name()} for ${damage} damage!`);
 
-                    if (target.dead()) {
-                        this.current_floor!.unspawn_enemy(target);
-                        this.log_message(`You kill the ${target.name}!`, LogStyle.Good);
+                        if (target.dead()) {
+                            this.current_floor!.unspawn_enemy(target);
+                            this.log_message(`You kill the ${target.name()}!`, LogStyle.Good);
 
-                        enemies.splice(0, 1);
+                            enemies.splice(0, 1);
+
+                            const drop_rate = this.base_drop_rate + (Math.log2(this.current_floor!.loop_count()) * 5);
+                            if (Math.random() < drop_rate) {
+                                const item_level = this.current_floor!.loop_count() + 1;
+                                const item = generate_random_equipment(item_level);
+                                this.player!.equip(item);
+                                this.log_message(`You have found ${item.to_string_with_indefinite_article()}`, LogStyle.Good);
+                            }
+                        }
                     }
-                }
 
-                for (const enemy of enemies) {
-                    if (++enemy.ticks_since_attack >= enemy.attack_interval) {
-                        enemy.ticks_since_attack = 0;
+                    for (const enemy of enemies) {
+                        if (++enemy.ticks_since_attack >= enemy.attack_interval()) {
+                            enemy.ticks_since_attack = 0;
 
-                        const damage = enemy.attack_damage();
-                        this.player!.take_damage(damage);
-                        this.log_message(`The ${enemy.name} hits you for ${damage} damage!`, LogStyle.Bad);
+                            const damage = enemy.attack_damage();
+                            this.player!.take_damage(damage);
+                            this.log_message(`The ${enemy.name()} hits you for ${damage} damage!`, LogStyle.Bad);
 
-                        if (this.player!.dead()) {
-                            this.log_message("Oh dear! You have died!", LogStyle.VeryBad);
-                            this.stop();
-                            break;
+                            if (this.player!.dead()) {
+                                this.log_message("Oh dear! You have died!", LogStyle.VeryBad);
+                                this.stop();
+                                break;
+                            }
                         }
                     }
                 }
             }
             // Allowed to move if no enemies here
-            else if (++this.player!.ticks_since_move >= this.player!.movement_interval) {
+            else if (++this.player!.ticks_since_move >= this.player!.movement_interval()) {
                 this.player!.ticks_since_move = 0;
                 this.current_fight_duration = 0;
                 if (this.current_floor!.advance_player()) {
-                    this.log_message("You have completed a loop.", LogStyle.VeryGood);
+                    this.player!.heal_to_full();
+                    this.log_message("You have completed a loop. Health restored!", LogStyle.VeryGood);
                 }
 
                 const weak_enemy_spawn_rate = 0.1;
@@ -251,22 +265,24 @@ export class Game {
         }
 
         // Drawing stuff
+        this.renderer.clearRect(0, this.canvas.height - tile_px_size, this.canvas.width, tile_px_size);
+
         this.current_floor!.render(this.renderer);
 
         this.renderer.fillStyle = offwhite_color;
         this.renderer.font = this.big_font_style;
         this.renderer.fillText(`LOOP#${this.current_floor!.loop_count() + 1}`, this.canvas_border_padding, this.big_font_size);
 
-        this.renderer.fillText(`HP${this.player!.hp}/${this.player!.max_hp}`, this.canvas_border_padding, this.big_font_size * 2 + this.text_line_padding);
+        this.renderer.fillText(this.player!.hp_string(), this.canvas_border_padding, this.big_font_size * 2 + this.text_line_padding);
 
         const play_state_icon = this.paused ? this.get_sprite("sprites/pause.png") : this.get_sprite("sprites/play.png");
-        this.renderer.drawImage(play_state_icon, this.canvas.width / 2 - tile_px_size / 2, 0);
+        this.renderer.drawImage(play_state_icon, this.floor_size * tile_px_size / 2 - tile_px_size / 2, 0);
 
         // Draw equipment
         this.renderer.strokeStyle = gray_color;
         let equipment_slot_tile_y = this.equipment_start_tile_y;
         for (const slot of equipment_slots) {
-            const equipment = this.equipment.get(slot);
+            const equipment = this.player!.get_equipment(slot);
             if (equipment) {
                 equipment.render(this.renderer, 0, equipment_slot_tile_y);
             } else {
@@ -277,10 +293,11 @@ export class Game {
             equipment_slot_tile_y++;
         }
 
-        if (this.cursor_canvas_pos[0] >= 0 && this.cursor_canvas_pos[0] < this.canvas.width &&
-                this.cursor_canvas_pos[1] >= 0 && this.cursor_canvas_pos[1] < this.canvas.height) {
+        const tile_coord = this.canvas_coord_to_tile_coord(...this.cursor_canvas_pos);
+        if (tile_coord[0] >= 0 && tile_coord[0] < this.floor_size &&
+                tile_coord[1] >= 0 && tile_coord[1] < this.floor_size) {
             // Describe what is under the cursor
-            const cursor_tile = this.current_floor!.tile_at(...this.canvas_coord_to_tile_coord(...this.cursor_canvas_pos));
+            const cursor_tile = this.current_floor!.tile_at(...tile_coord);
             let tile_description = "";
 
             const player_tile = this.current_floor!.player_tile();
@@ -288,16 +305,16 @@ export class Game {
             
             // Prioritize equipment slots then enemies then buildings then terrain
             if (cursor_tile.x() == 0 && cursor_tile.y() >= this.equipment_start_tile_y &&
-                    cursor_tile.y() <= this.equipment_start_tile_y + equipment_slots.length) {
+                    cursor_tile.y() < this.equipment_start_tile_y + equipment_slots.length) {
                 const equipment_slot = equipment_slots[cursor_tile.y() - this.equipment_start_tile_y];
-                const equipment = this.equipment.get(equipment_slot);
-                if (equipment) {
-                    tile_description += equipment.to_string();
+                const item = this.player!.get_equipment(equipment_slot);
+                if (item) {
+                    tile_description += item.to_string();
                 } else {
                     tile_description += `${equipment_slot_names[equipment_slot]} (Empty)`;
                 }
             } else if (enemies.length > 0) {
-                tile_description += enemies.map(e => `${e.name} (HP${e.hp}/${e.max_hp})`).join(", ");
+                tile_description += enemies.map(e => `${e.name()} (${e.hp_string()})`).join(", ");
             } else if (cursor_tile == player_tile) {
                 tile_description += "That's you!";
             } else {

@@ -55,3 +55,36 @@ export function colorize(img: HTMLImageElement | HTMLCanvasElement, r: number, g
 
     return canvas;
 }
+
+export const get_keys = Object.keys as <T extends object>(obj: T) => Array<keyof T>;
+
+export function clamp(n: number, min: number, max: number): number {
+    return Math.max(min, Math.min(max, n));
+}
+
+const vowels = "aeiou";
+
+export function is_vowel(char: string): boolean {
+    return vowels.indexOf(char.toLowerCase()) > -1;
+}
+
+export function is_plural(word: string): boolean {
+    return word[word.length - 1].toLowerCase() == "s" &&
+            (word.length < 2 || word[word.length - 2].toLowerCase() != "s");
+}
+
+export function add_indefinite_article(word: string): string {
+    if (is_plural(word)) {
+        return word;
+    }
+
+    if (is_vowel(word[0])) {
+        return "an " + word;
+    }
+
+    return "a " + word;
+}
+
+export function format_name_and_stats(name: string, stats: Array<string>): string {
+    return `${name} (${stats.join(",")})`;
+}
