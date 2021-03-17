@@ -9,7 +9,10 @@ export class Player extends Creature {
         super("You", game.get_sprite("sprites/player.png"), 20, [], 100, 30);
     }
 
-    public attack_interval(): number {
+    /**
+     * Returns total increased attack speed as a multiplier
+     */
+    protected total_increased_attack_speed(): number {
         let inc_attack_speed = 100;
 
         for (const item of this.equipment.values()) {
@@ -18,10 +21,19 @@ export class Player extends Creature {
 
         inc_attack_speed /= 100;
 
+        return inc_attack_speed;
+    }
+
+    public attack_interval(): number {
+        const inc_attack_speed = this.total_increased_attack_speed();
+
         return this.base_attack_interval / inc_attack_speed;
     }
 
-    public attack_damage(): number {
+    /**
+     * Returns total minimum damage and variable damage
+     */
+    protected total_damage_stats(): [number, number] {
         let added_min_dmg = 0;
         let added_var_dmg = 0;
         let inc_dmg = 100;
@@ -37,10 +49,16 @@ export class Player extends Creature {
 
         // Apply increased damage
         const min_dmg = Math.round(added_min_dmg * inc_dmg);
-        const var_dmg = added_var_dmg * inc_dmg;
+        const var_dmg = Math.round(added_var_dmg * inc_dmg);
+
+        return [min_dmg, var_dmg];
+    }
+
+    public attack_damage(): number {
+        const [min_dmg, var_dmg] = this.total_damage_stats();
 
         let var_dmg_roll = 0;
-        if (added_var_dmg > 0) {
+        if (var_dmg > 0) {
             var_dmg_roll = Math.round(Math.random() * var_dmg);
         }
 
@@ -98,5 +116,18 @@ export class Player extends Creature {
         inc_hp /= 100;
 
         return Math.floor((this.base_max_hp + added_hp) * inc_hp);
+    }
+
+    public stats_to_strings(): Array<string> {
+        const [min_dmg, var_dmg] = this.total_damage_stats();
+        const inc_attack_speed = Math.floor(this.total_increased_attack_speed() * 100);
+
+        const stats: Array<string> = [
+            this.hp_string(),
+            `DMG${min_dmg}-${min_dmg + var_dmg}`,
+            `SPD${inc_attack_speed}%`
+        ];
+
+        return stats;
     }
 }
