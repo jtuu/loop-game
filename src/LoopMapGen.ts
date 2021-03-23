@@ -46,13 +46,14 @@ export class LoopMapGen extends MapGen {
 
         // Work around rare bug where we fail to find a path depending on the starting location
         let i = 0;
-        while (!pathable && path.length < this.size && ++i < 1000) {
+        while ((!pathable || path.length < this.size) && ++i < 1000) {
             // Pick loop starting poing
             const rx = Math.floor(Math.random() * this.size);
             const ry = Math.floor(Math.random() * this.size);
             loop_start = this.find_nearest(rx, ry, floor_value);
             
             // Init pathfinding
+            pathable = false;
             path = [loop_start];
             const frontier: Array<Vec2> = [];
             const came_from: Array<[Vec2, Vec2 | null]> = [[loop_start, null]];
