@@ -92,7 +92,9 @@ export class FloorLoop {
         enemy.floor = null;
         this.enemies.splice(idx, 1);
 
-        this.empty_floor_tiles.push([enemy.x, enemy.y]);
+        if (this.enemies_at(enemy.x, enemy.y).length == 0) {
+            this.empty_floor_tiles.push([enemy.x, enemy.y]);
+        }
     }
 
     public enemies_at(x: number, y: number): Array<Creature> {
