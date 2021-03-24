@@ -2,7 +2,7 @@ import { Creature, weak_enemy } from "./Creature";
 import { empty_equipment_sprites, EquipmentSlot, equipment_slots, equipment_slot_names, generate_equipment, generate_random_equipment } from "./Equipment";
 import { FloorLoop } from "./FloorLoop";
 import { Player } from "./Player";
-import { add_indefinite_article, Vec2 } from "./utils";
+import { add_indefinite_article, clamp, Vec2 } from "./utils";
 
 export const tile_px_size = 64;
 export const offwhite_color = "#e3e2e8";
@@ -22,7 +22,9 @@ const sprite_paths = [
     "sprites/empty_mainhand.png",
     "sprites/empty_offhand.png",
     "sprites/empty_ring.png",
-    "sprites/empty_amulet.png"
+    "sprites/empty_amulet.png",
+    "sprites/rubble1.png",
+    "sprites/rubble2.png"
 ] as const;
 
 export type SpriteName = typeof sprite_paths[number];
@@ -76,7 +78,7 @@ export class Game {
 
     protected paused = true;
 
-    protected player: Player | null = null;
+    protected player_: Player | null = null;
 
     protected equipment_start_tile_y = 2;
 
@@ -140,7 +142,7 @@ export class Game {
         // Init event handlers
         this.canvas.addEventListener("mousedown", () => {
             this.paused = !this.paused;
-            this.player!.ticks_since_move = 0;
+            this.player_!.ticks_since_move = 0;
         });
 
         this.canvas.addEventListener("mousemove", e => {
@@ -149,11 +151,11 @@ export class Game {
         });
 
         // Init floor and player
+        const player = this.player_ = new Player();
         this.current_floor = new FloorLoop(this.floor_size);
 
-        this.player = new Player();
         // Give player starting equipment
-        this.player!.equip(generate_equipment(EquipmentSlot.Mainhand, 1));
+        player.equip(generate_equipment(EquipmentSlot.Mainhand, 1));
 
         this.log_message(`Hello and welcome to the Loop!`);
 
@@ -223,7 +225,7 @@ export class Game {
         this.renderer.strokeStyle = gray_color;
         let equipment_slot_tile_y = this.equipment_start_tile_y;
         for (const slot of equipment_slots) {
-            const equipment = this.player!.get_equipment(slot);
+            const equipment = this.player_!.get_equipment(slot);
             if (equipment) {
                 equipment.render(this.renderer, 0, equipment_slot_tile_y);
             } else {
@@ -236,28 +238,45 @@ export class Game {
     }
 
     protected describe_tile_under_cursor() {
+        const floor = this.current_floor;
+        if (!floor) {
+            return;
+        }
+
         const tile_coord = this.canvas_coord_to_tile_coord(...this.cursor_canvas_pos);
         if (tile_coord[0] >= 0 && tile_coord[0] < this.floor_size &&
                 tile_coord[1] >= 0 && tile_coord[1] < this.floor_size) {
             // Describe what is under the cursor
-            const cursor_tile = this.current_floor!.tile_at(...tile_coord);
+            const cursor_tile = floor.tile_at(...tile_coord);
             let tile_description = "";
 
-            const player_tile = this.current_floor!.player_tile();
-            const enemies = this.current_floor!.enemies_at(cursor_tile.x(), cursor_tile.y());
+            const player_tile = floor.player_tile();
+            const enemies = floor.enemies_at(cursor_tile.x(), cursor_tile.y());
             
             // Prioritize equipment slots then enemies then buildings then terrain
             if (cursor_tile.x() == 0 && cursor_tile.y() >= this.equipment_start_tile_y &&
                     cursor_tile.y() < this.equipment_start_tile_y + equipment_slots.length) {
                 const equipment_slot = equipment_slots[cursor_tile.y() - this.equipment_start_tile_y];
-                const item = this.player!.get_equipment(equipment_slot);
+                const item = this.player_!.get_equipment(equipment_slot);
                 if (item) {
                     tile_description += item.to_string();
                 } else {
                     tile_description += `${equipment_slot_names[equipment_slot]} (Empty)`;
                 }
             } else if (enemies.length > 0) {
-                tile_description += enemies.map(e => `${e.name()} (${e.hp_string()})`).join(", ");
+                const enemy_descriptions = new Map<string, number>();
+
+                for (const enemy of enemies) {
+                    const text = `${enemy.name()}(${enemy.hp_string()})`;
+                    let count = enemy_descriptions.get(text);
+                    if (!count) {
+                        count = 0;
+                    }
+                    enemy_descriptions.set(text, ++count);
+                }
+
+                tile_description += Array.from(enemy_descriptions.entries())
+                    .map(([text, count]) => count > 1 ? `${text}(x${count})` : text).join(", ");
             } else if (cursor_tile == player_tile) {
                 tile_description += "That's you!";
             } else {
@@ -284,7 +303,7 @@ export class Game {
         const play_state_icon = this.paused ? this.get_sprite("sprites/pause.png") : this.get_sprite("sprites/play.png");
         this.renderer.drawImage(play_state_icon, this.floor_size * tile_px_size / 2 - tile_px_size / 2, 0);
 
-        const player_stats = this.player!.stats_to_strings()
+        const player_stats = this.player_!.stats_to_strings()
         for (let i = 0; i < player_stats.length; i++) {
             const y = (i + 1) * this.big_font_size + i * this.text_line_spacing + this.canvas_border_padding;
             this.renderer.fillText(player_stats[i], this.floor_size * tile_px_size, y);
@@ -292,6 +311,17 @@ export class Game {
     }
 
     protected update_fight(enemies: Array<Creature>) {
+        const player = this.player_;
+        const floor = this.current_floor;
+
+        if (!player) {
+            throw new Error("Missing player object");
+        }
+
+        if (!floor) {
+            throw new Error("Missing floor object");
+        }
+
         if (this.current_fight_duration++ == 0) {
             // Describe enemies
             const counts_by_name = new Map();
@@ -330,7 +360,7 @@ export class Game {
             this.log_message(`You have encountered ${enemies_list_text}!`);
 
             // Player's initial attack has lower delay
-            this.player!.ticks_since_attack = Math.floor(Math.random() * this.player!.attack_interval());
+            player.ticks_since_attack = Math.floor(Math.random() * player.attack_interval());
         }
 
         // Add a small delay at the beginning of a fight to make it look a bit nicer
@@ -338,31 +368,40 @@ export class Game {
             return;
         }
 
-        if (++this.player!.ticks_since_attack >= this.player!.attack_interval()) {
-            this.player!.ticks_since_attack = 0;
+        if (++player.ticks_since_attack >= player.attack_interval()) {
+            player.ticks_since_attack = 0;
 
-            const target = enemies[0];
-            const damage = this.player!.attack_damage();
-            target.take_damage(damage);
-            this.log_message(`You hit the ${target.name()} for ${damage} damage!`);
+            const target = enemies.find(e => !e.dead());
+            if (target) {
+                const damage = player.attack_damage();
+                target.take_damage(damage);
+                this.log_message(`You hit the ${target.name()} for ${damage} damage!`);
 
-            if (target.dead()) {
-                this.current_floor!.unspawn_enemy(target);
-                this.log_message(`You kill the ${target.name()}!`, LogStyle.Good);
+                if (target.dead()) {
+                    this.log_message(`You kill the ${target.name()}!`, LogStyle.Good);
 
-                enemies.splice(0, 1);
+                    enemies.splice(0, 1);
 
-                const drop_rate = this.base_drop_rate + (Math.log2(this.current_floor!.loop_count()) * 5);
-                if (Math.random() < drop_rate) {
-                    const item_level = this.current_floor!.loop_count() + 1;
-                    const item = generate_random_equipment(item_level);
-                    this.player!.equip(item);
-                    this.log_message(`You have found ${item.to_string_with_indefinite_article()}`, LogStyle.Good);
+                    const drop_rate = this.base_drop_rate + (Math.log2(floor.loop_count()) * 5);
+                    if (Math.random() < drop_rate) {
+                        const item_level = floor.loop_count() + 1;
+                        const item = generate_random_equipment(item_level);
+                        player.equip(item);
+                        this.log_message(`You have found ${item.to_string_with_indefinite_article()}`, LogStyle.Good);
+                    }
                 }
             }
         }
 
+        let all_dead = true;
+
         for (const enemy of enemies) {
+            if (enemy.dead()) {
+                continue;
+            }
+
+            all_dead = false;
+
             if (++enemy.ticks_since_attack < enemy.attack_interval()) {
                 continue;
             }
@@ -370,40 +409,73 @@ export class Game {
             enemy.ticks_since_attack = 0;
 
             const damage = enemy.attack_damage();
-            this.player!.take_damage(damage);
+            player.take_damage(damage);
             this.log_message(`The ${enemy.name()} hits you for ${damage} damage!`, LogStyle.Bad);
 
-            if (this.player!.dead()) {
+            if (player.dead()) {
                 this.log_message("Oh dear! You have died!", LogStyle.VeryBad);
                 break;
+            }
+        }
+
+        if (all_dead) {
+            // Dead enemies don't unspawn until all enemies are dead
+            for (const enemy of enemies) {
+                floor.unspawn_enemy(enemy);
             }
         }
     }
 
     protected update_player() {
-        if (this.paused || this.player!.dead()) {
+        const player = this.player_;
+        const floor = this.current_floor;
+
+        if (this.paused || !player || player.dead() || !floor) {
             return;
         }
 
-        const player_tile = this.current_floor!.player_tile();
-        const enemies = this.current_floor!.enemies_at(player_tile.x(), player_tile.y());
+        const player_tile = floor.player_tile();
+        const enemies = floor.enemies_at(player_tile.x(), player_tile.y());
 
         // Can't move until there are no enemies on this tile
         if (enemies.length > 0) {
             this.update_fight(enemies);
-        } else if (++this.player!.ticks_since_move >= this.player!.movement_interval()) {
-            this.player!.ticks_since_move = 0;
+        } else if (++player.ticks_since_move >= player.movement_interval()) {
+            player.ticks_since_move = 0;
             this.current_fight_duration = 0;
 
-            if (this.current_floor!.advance_player()) {
-                this.player!.heal_to_full();
+            if (floor.advance_player()) {
+                player.heal_to_full();
                 this.log_message("You have completed a loop. Health restored!", LogStyle.VeryGood);
             }
 
-            const weak_enemy_spawn_rate = 0.1;
-            if (Math.random() < weak_enemy_spawn_rate) {
-                this.current_floor!.spawn_enemy_in_random_location(weak_enemy());
-            }
+            this.after_player_move();
         }
+    }
+
+    protected after_player_move() {
+        const floor = this.current_floor;
+
+        if (!floor) {
+            return;
+        }
+
+        const max_tile_enemies = 5;
+        const weak_enemy_spawn_rate = 0.1;
+        
+        if (Math.random() < weak_enemy_spawn_rate) {
+            const num_enemies = clamp(Math.floor(Math.random() * floor.loop_count()), 1, max_tile_enemies);
+            const enemies = Array(num_enemies);
+
+            for (let i = 0; i < num_enemies; i++) {
+                enemies[i] = weak_enemy();
+            }
+
+            floor.spawn_enemies_in_random_location(enemies);
+        }
+    }
+
+    public player(): Player {
+        return this.player_!;
     }
 }

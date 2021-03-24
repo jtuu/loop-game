@@ -1,6 +1,6 @@
 import { SpriteName, tile_px_size } from "./Game";
 import { game } from "./main";
-import { add_indefinite_article, clamp, colorize, format_name_and_stats, get_keys, hsv2rgb } from "./utils";
+import { add_indefinite_article, CanvasImage, clamp, colorize, format_name_and_stats, get_keys, hsv2rgb } from "./utils";
 
 export enum EquipmentSlot {
     Helmet,
@@ -69,7 +69,7 @@ export class Equipment {
     constructor(
         public name: string,
         public slot: EquipmentSlot,
-        public sprite: CanvasImageSource
+        public sprite: CanvasImage
     ) {
 
     }

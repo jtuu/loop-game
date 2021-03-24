@@ -28,7 +28,9 @@ export function hsv2rgb(h: number, s: number, v: number): Vec3 {
     return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
 }
 
-export function colorize(img: HTMLImageElement | HTMLCanvasElement, r: number, g: number, b: number): HTMLCanvasElement {
+export type CanvasImage = HTMLImageElement | HTMLCanvasElement;
+
+export function colorize(img: CanvasImage, r: number, g: number, b: number): HTMLCanvasElement {
     const canvas = document.createElement("canvas");
     
     const ctx = canvas.getContext("2d");

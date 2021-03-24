@@ -2,6 +2,10 @@ import { FloorLoop } from "./FloorLoop";
 import { tile_px_size } from "./Game";
 import { game } from "./main";
 
+const formation_sprite_margin = 1;
+const formation_max_per_column = 3;
+const max_per_formation = 6;
+
 export class Creature {
     public x = -1;
     public y = -1;
@@ -14,7 +18,7 @@ export class Creature {
 
     constructor(
         protected name_: string,
-        protected sprite: CanvasImageSource,
+        protected sprite: HTMLCanvasElement | HTMLImageElement,
         protected base_max_hp: number,
         protected hit_dice: number[],
         protected base_attack_interval: number,
@@ -61,8 +65,74 @@ export class Creature {
         this.hp_ = this.max_hp();
     }
 
-    public render(renderer: CanvasRenderingContext2D) {
-        renderer.drawImage(this.sprite, this.x * tile_px_size, this.y * tile_px_size);
+    public render_center(renderer: CanvasRenderingContext2D) {
+        const half_width = this.sprite.width / 2;
+        const half_height = this.sprite.height / 2;
+        const half_tile = tile_px_size / 2;
+        const render_x = this.x * tile_px_size + half_tile - half_width;
+        const render_y = this.y * tile_px_size + half_tile - half_height;
+        renderer.drawImage(this.sprite, render_x, render_y);
+    }
+
+    public render_fight_left(renderer: CanvasRenderingContext2D) {
+        const half_height = this.sprite.height / 2;
+        const half_tile = tile_px_size / 2;
+        const render_x = this.x * tile_px_size + formation_sprite_margin;
+        const render_y = this.y * tile_px_size + half_tile - half_height;
+        renderer.drawImage(this.sprite, render_x, render_y);
+    }
+
+    protected render_formation(renderer: CanvasRenderingContext2D, position: number, num_allies: number, offset_left: number) {
+        if (position + 1 > max_per_formation || num_allies < 1) {
+            return;
+        }
+
+        if (num_allies > max_per_formation) {
+            num_allies = max_per_formation;
+        }
+
+        let num_per_column = formation_max_per_column;
+
+        // Figure out position in battle formation
+        let row = position % num_per_column;
+        let column = Math.floor(position / num_per_column);
+        let num_allies_in_column = Math.min(num_allies - column * num_per_column, num_per_column);
+
+        // Distribute equally in last 2 columns
+        const num_columns = Math.ceil(num_allies / formation_max_per_column);
+        if (num_columns > 1) {
+            const half = (num_allies - Math.max(0, num_columns - 2) * num_per_column) / 2;
+            if (column + 1 == num_columns) {
+                num_allies_in_column = Math.floor(half);
+            } else if (column + 2 == num_columns) {
+                num_allies_in_column = Math.ceil(half);
+            }
+
+            if (row >= num_allies_in_column) {
+                row = position % num_allies_in_column + 1;
+                column = Math.floor(position / num_allies_in_column);
+            }
+        }
+
+        const half_tile = tile_px_size / 2;
+        const column_height = (this.sprite.height + formation_sprite_margin) * num_allies_in_column;
+        const column_y = half_tile - Math.floor(column_height / 2);
+        const render_x = offset_left - (this.sprite.width + formation_sprite_margin) * (column + 1);
+        const render_y = this.y * tile_px_size + column_y + (this.sprite.height + formation_sprite_margin) * row;
+        renderer.drawImage(this.sprite, render_x, render_y);
+    }
+
+    public render_formation_center(renderer: CanvasRenderingContext2D, position: number, num_allies: number) {
+        const num_columns = Math.ceil(num_allies / formation_max_per_column);
+        const width = num_columns * this.sprite.width + (num_columns - 1) * formation_sprite_margin;
+        const render_x = this.x * tile_px_size + tile_px_size / 2 + Math.floor(width / 2);
+        this.render_formation(renderer, position, num_allies, render_x);
+    }
+
+    public render_fight_right(renderer: CanvasRenderingContext2D, position: number, num_allies: number) {
+        const column = Math.floor(position / formation_max_per_column);
+        const render_x = this.x * tile_px_size + tile_px_size;
+        this.render_formation(renderer, position, num_allies, render_x);
     }
 
     public hp_string(): string {
