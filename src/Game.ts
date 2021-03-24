@@ -24,7 +24,13 @@ const sprite_paths = [
     "sprites/empty_ring.png",
     "sprites/empty_amulet.png",
     "sprites/rubble1.png",
-    "sprites/rubble2.png"
+    "sprites/rubble2.png",
+    "sprites/player_boots.png",
+    "sprites/player_mainhand.png",
+    "sprites/player_cloak.png",
+    "sprites/player_offhand.png",
+    "sprites/player_armor.png",
+    "sprites/player_helmet.png"
 ] as const;
 
 export type SpriteName = typeof sprite_paths[number];
@@ -267,6 +273,10 @@ export class Game {
                 const enemy_descriptions = new Map<string, number>();
 
                 for (const enemy of enemies) {
+                    if (enemy.dead()) {
+                        continue;
+                    }
+
                     const text = `${enemy.name()}(${enemy.hp_string()})`;
                     let count = enemy_descriptions.get(text);
                     if (!count) {

@@ -4,6 +4,10 @@ body {
     background-color: hsl(0, 0%, 10%);
 }
 
+canvas {
+    image-rendering: crisp-edges;
+}
+
 .message-log {
     font-family: "puny8x10";
     font-size: 20px;

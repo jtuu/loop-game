@@ -1,6 +1,6 @@
 import { SpriteName, tile_px_size } from "./Game";
 import { game } from "./main";
-import { add_indefinite_article, CanvasImage, clamp, colorize, format_name_and_stats, get_keys, hsv2rgb } from "./utils";
+import { add_indefinite_article, CanvasImage, clamp, colorize, format_name_and_stats, get_keys, hsv2rgb, Vec3 } from "./utils";
 
 export enum EquipmentSlot {
     Helmet,
@@ -69,7 +69,8 @@ export class Equipment {
     constructor(
         public name: string,
         public slot: EquipmentSlot,
-        public sprite: CanvasImage
+        public sprite: CanvasImage,
+        public color: Vec3
     ) {
 
     }
@@ -456,7 +457,7 @@ export function generate_equipment(slot: EquipmentSlot, item_level: number): Equ
         }
     }
 
-    const item = new Equipment(generate_equipment_name(slot), slot, colorized_sprite);
+    const item = new Equipment(generate_equipment_name(slot), slot, colorized_sprite, color);
 
     // Roll stat values
     for (const [stat, _, base_min_roll, base_range, scaling_value] of stats) {

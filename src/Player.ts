@@ -1,6 +1,17 @@
 import { Creature } from "./Creature";
 import { Equipment, EquipmentSlot, Stat } from "./Equipment";
+import { SpriteName } from "./Game";
 import { game } from "./main";
+import { colorize } from "./utils";
+
+const player_equipment_sprites = new Map<EquipmentSlot, SpriteName>([
+    [EquipmentSlot.Armor, "sprites/player_armor.png"],
+    [EquipmentSlot.Boots, "sprites/player_boots.png"],
+    [EquipmentSlot.Helmet, "sprites/player_helmet.png"],
+    [EquipmentSlot.Cloak, "sprites/player_cloak.png"],
+    [EquipmentSlot.Mainhand, "sprites/player_mainhand.png"],
+    [EquipmentSlot.Offhand, "sprites/player_offhand.png"]
+]);
 
 export class Player extends Creature {
     protected equipment: Map<EquipmentSlot, Equipment> = new Map();
@@ -80,6 +91,9 @@ export class Player extends Creature {
 
         const old = this.unequip(item.slot);
         this.equipment.set(item.slot, item);
+
+        this.redraw_sprite();
+
         return old;
     }
 
@@ -129,5 +143,42 @@ export class Player extends Creature {
         ];
 
         return stats;
+    }
+
+    protected render_equipment(renderer: CanvasRenderingContext2D, slot: EquipmentSlot) {
+        const item = this.equipment.get(slot);
+        if (!item) {
+            return;
+        }
+
+        const sprite_name = player_equipment_sprites.get(slot);
+        if (!sprite_name) {
+            return;
+        }
+
+        const colorized = colorize(game.get_sprite(sprite_name), ...item.color);
+        renderer.drawImage(colorized, 0, 0);
+    }
+
+    protected redraw_sprite() {
+        const canvas = document.createElement("canvas");
+        const renderer = canvas.getContext("2d");
+
+        if (!renderer) {
+            throw new Error("Failed to create renderer");
+        }
+
+        canvas.width = this.sprite.width;
+        canvas.height = this.sprite.height;
+
+        this.render_equipment(renderer, EquipmentSlot.Cloak);
+        renderer.drawImage(game.get_sprite("sprites/player.png"), 0, 0);
+        this.render_equipment(renderer, EquipmentSlot.Boots);
+        this.render_equipment(renderer, EquipmentSlot.Armor);
+        this.render_equipment(renderer, EquipmentSlot.Helmet);
+        this.render_equipment(renderer, EquipmentSlot.Mainhand);
+        this.render_equipment(renderer, EquipmentSlot.Offhand);
+
+        this.sprite = canvas;
     }
 }
