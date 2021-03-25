@@ -1,5 +1,6 @@
 import { SpriteName, tile_px_size } from "./Game";
 import { game } from "./main";
+import { Serializable, SerializationBlacklist } from "./serialization";
 import { add_indefinite_article, CanvasImage, clamp, colorize, format_name_and_stats, get_keys, hsv2rgb, Vec3 } from "./utils";
 
 export enum EquipmentSlot {
@@ -63,19 +64,33 @@ export enum Stat {
     IncreasedAttackSpeed
 }
 
+@Serializable
 export class Equipment {
     public stats: Map<Stat, number> = new Map();
+
+    @SerializationBlacklist protected sprite_drawn = false;
+    @SerializationBlacklist public sprite: CanvasImage;
 
     constructor(
         public name: string,
         public slot: EquipmentSlot,
-        public sprite: CanvasImage,
         public color: Vec3
     ) {
+        // Assure tsc that sprite is assigned
+        this.sprite = this.redraw_sprite();
+    }
 
+    public redraw_sprite(): CanvasImage {
+        const orig_sprite = game.get_sprite(empty_equipment_sprites[this.slot]);
+        this.sprite = colorize(orig_sprite, ...this.color);
+        this.sprite_drawn = true;
+        return this.sprite;
     }
 
     public render(renderer: CanvasRenderingContext2D, tile_x: number, tile_y: number) {
+        if (!this.sprite_drawn) {
+            this.redraw_sprite();
+        }
         renderer.drawImage(this.sprite, tile_x * tile_px_size, tile_y * tile_px_size);
     }
 
@@ -412,9 +427,7 @@ const equipment_stat_weight_sums = get_keys(equipment_stat_weights).reduce((acc,
 }
 
 export function generate_equipment(slot: EquipmentSlot, item_level: number): Equipment {
-    const orig_sprite = game.get_sprite(empty_equipment_sprites[slot]);
     const color = hsv2rgb(Math.random(), 0.3 + Math.random() * 0.7, 0.3 + Math.random() * 0.7);
-    const colorized_sprite = colorize(orig_sprite, ...color);
 
     const stats: Array<StatWeightInfo> = [];
     const available_stats = Array.from(equipment_stat_weights[slot]);
@@ -457,7 +470,7 @@ export function generate_equipment(slot: EquipmentSlot, item_level: number): Equ
         }
     }
 
-    const item = new Equipment(generate_equipment_name(slot), slot, colorized_sprite, color);
+    const item = new Equipment(generate_equipment_name(slot), slot, color);
 
     // Roll stat values
     for (const [stat, _, base_min_roll, base_range, scaling_value] of stats) {

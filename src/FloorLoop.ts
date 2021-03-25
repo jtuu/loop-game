@@ -2,9 +2,11 @@ import { Creature } from "./Creature";
 import { Grid } from "./Grid";
 import { LoopMapGen } from "./LoopMapGen";
 import { game } from "./main";
+import { Serializable } from "./serialization";
 import { BuildingKind, Tile } from "./Tile";
 import { Vec2 } from "./utils";
 
+@Serializable
 export class FloorLoop {
     protected tiles: Grid<Tile>;
     protected path: Array<Vec2>;
@@ -80,7 +82,6 @@ export class FloorLoop {
         this.empty_floor_tiles.splice(loc_idx, 1);
         
         for (const enemy of enemies) {
-            enemy.floor = this;
             enemy.x = loc[0];
             enemy.y = loc[1];
             this.enemies.push(enemy);
@@ -89,7 +90,6 @@ export class FloorLoop {
 
     public unspawn_enemy(enemy: Creature) {
         const idx = this.enemies.indexOf(enemy);
-        enemy.floor = null;
         this.enemies.splice(idx, 1);
 
         if (this.enemies_at(enemy.x, enemy.y).length == 0) {

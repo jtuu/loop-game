@@ -2,7 +2,8 @@ import { Creature } from "./Creature";
 import { Equipment, EquipmentSlot, Stat } from "./Equipment";
 import { SpriteName } from "./Game";
 import { game } from "./main";
-import { colorize } from "./utils";
+import { Serializable, SerializationBlacklist } from "./serialization";
+import { CanvasImage, colorize } from "./utils";
 
 const player_equipment_sprites = new Map<EquipmentSlot, SpriteName>([
     [EquipmentSlot.Armor, "sprites/player_armor.png"],
@@ -13,11 +14,14 @@ const player_equipment_sprites = new Map<EquipmentSlot, SpriteName>([
     [EquipmentSlot.Offhand, "sprites/player_offhand.png"]
 ]);
 
+@Serializable
 export class Player extends Creature {
     protected equipment: Map<EquipmentSlot, Equipment> = new Map();
+
+    @SerializationBlacklist protected sprite_drawn = false;
     
     constructor() {
-        super("You", game.get_sprite("sprites/player.png"), 20, [], 100, 30);
+        super("You", "sprites/player.png", 20, [], 100, 30);
     }
 
     /**
@@ -168,17 +172,36 @@ export class Player extends Creature {
             throw new Error("Failed to create renderer");
         }
 
-        canvas.width = this.sprite.width;
-        canvas.height = this.sprite.height;
+        const base_sprite = game.get_sprite(this.base_sprite_name);
+
+        canvas.width = base_sprite.width;
+        canvas.height = base_sprite.height;
 
         this.render_equipment(renderer, EquipmentSlot.Cloak);
-        renderer.drawImage(game.get_sprite("sprites/player.png"), 0, 0);
+        renderer.drawImage(base_sprite, 0, 0);
         this.render_equipment(renderer, EquipmentSlot.Boots);
         this.render_equipment(renderer, EquipmentSlot.Armor);
         this.render_equipment(renderer, EquipmentSlot.Helmet);
         this.render_equipment(renderer, EquipmentSlot.Mainhand);
         this.render_equipment(renderer, EquipmentSlot.Offhand);
 
+        this.sprite_drawn = true;
         this.sprite = canvas;
+    }
+
+    public render_center(renderer: CanvasRenderingContext2D) {
+        if (!this.sprite_drawn) {
+            this.redraw_sprite();
+        }
+
+        super.render_center(renderer);
+    }
+
+    public render_fight_left(renderer: CanvasRenderingContext2D) {
+        if (!this.sprite_drawn) {
+            this.redraw_sprite();
+        }
+
+        super.render_fight_left(renderer);
     }
 }

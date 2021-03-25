@@ -1,5 +1,6 @@
 import { SpriteName, tile_px_size } from "./Game";
 import { game } from "./main";
+import { Serializable } from "./serialization";
 import { CanvasImage } from "./utils";
 
 export enum TerrainKind {
@@ -18,6 +19,7 @@ const rubble_sprites: Array<SpriteName> = [
     "sprites/rubble2.png"
 ];
 
+@Serializable
 export class Tile {
     protected x_: number;
     protected y_: number;

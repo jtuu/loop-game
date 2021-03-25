@@ -1,3 +1,6 @@
+import { Serializable } from "./serialization";
+
+@Serializable
 export class Grid<T> {
     protected elements_: Array<T>;
 

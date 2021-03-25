@@ -1,30 +1,35 @@
 import { FloorLoop } from "./FloorLoop";
-import { tile_px_size } from "./Game";
+import { SpriteName, tile_px_size } from "./Game";
 import { game } from "./main";
+import { Serializable, SerializationBlacklist } from "./serialization";
+import { CanvasImage } from "./utils";
 
 const formation_sprite_margin = 1;
 const formation_max_per_column = 3;
 const max_per_formation = 6;
 
+@Serializable
 export class Creature {
     public x = -1;
     public y = -1;
 
     protected hp_: number;
 
-    public floor: FloorLoop | null = null;
     public ticks_since_attack = 0;
     public ticks_since_move = 0;
 
+    @SerializationBlacklist protected sprite: CanvasImage;
+
     constructor(
         protected name_: string,
-        protected sprite: HTMLCanvasElement | HTMLImageElement,
+        protected base_sprite_name: SpriteName,
         protected base_max_hp: number,
         protected hit_dice: number[],
         protected base_attack_interval: number,
         protected base_movement_interval: number
     ) {
         this.hp_ = base_max_hp;
+        this.sprite = game.get_sprite(this.base_sprite_name);
     }
 
     public take_damage(damage: number) {
@@ -65,7 +70,15 @@ export class Creature {
         this.hp_ = this.max_hp();
     }
 
+    protected ensure_sprite_exists() {
+        if (!this.sprite) {
+            this.sprite = game.get_sprite(this.base_sprite_name);
+        }
+    }
+
     public render_center(renderer: CanvasRenderingContext2D) {
+        this.ensure_sprite_exists();
+
         const half_width = this.sprite.width / 2;
         const half_height = this.sprite.height / 2;
         const half_tile = tile_px_size / 2;
@@ -75,6 +88,8 @@ export class Creature {
     }
 
     public render_fight_left(renderer: CanvasRenderingContext2D) {
+        this.ensure_sprite_exists();
+
         const half_height = this.sprite.height / 2;
         const half_tile = tile_px_size / 2;
         const render_x = this.x * tile_px_size + formation_sprite_margin;
@@ -123,6 +138,8 @@ export class Creature {
     }
 
     public render_formation_center(renderer: CanvasRenderingContext2D, position: number, num_allies: number) {
+        this.ensure_sprite_exists();
+
         const num_columns = Math.ceil(num_allies / formation_max_per_column);
         const width = num_columns * this.sprite.width + (num_columns - 1) * formation_sprite_margin;
         const render_x = this.x * tile_px_size + tile_px_size / 2 + Math.floor(width / 2);
@@ -130,7 +147,8 @@ export class Creature {
     }
 
     public render_fight_right(renderer: CanvasRenderingContext2D, position: number, num_allies: number) {
-        const column = Math.floor(position / formation_max_per_column);
+        this.ensure_sprite_exists();
+
         const render_x = this.x * tile_px_size + tile_px_size;
         this.render_formation(renderer, position, num_allies, render_x);
     }
@@ -141,5 +159,5 @@ export class Creature {
 }
 
 export function weak_enemy(): Creature {
-    return new Creature("Weak creature", game.get_sprite("sprites/weak_creature.png"), 5, [2], 100, Infinity);
+    return new Creature("Weak creature", "sprites/weak_creature.png", 5, [2], 100, Infinity);
 }

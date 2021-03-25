@@ -4,7 +4,8 @@
         "target": "ES6",
         "strict": true,
         "outDir": "dist/js",
-        "lib": ["dom", "es2017"]
+        "lib": ["dom", "es2017"],
+        "experimentalDecorators": true
     },
     "include": ["src/**/*"]
 }
